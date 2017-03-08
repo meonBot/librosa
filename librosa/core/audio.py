@@ -5,7 +5,12 @@
 import os
 import six
 
-from audioread import audio_open
+try: # use aubio if found
+    from aubio import source as audio_open
+    _using_aubio = True
+except ImportError: # otherwise use audioread
+    from audioread import audio_open
+    _using_aubio = False
 import numpy as np
 import scipy.signal
 import scipy.fftpack as fft
@@ -107,7 +112,7 @@ def load(path, sr=22050, mono=True, offset=0.0, duration=None,
     with audio_open(path) as input_file:
         sr_native = input_file.samplerate
         n_channels = input_file.channels
-        n_stride = n_channels
+        n_stride = _using_aubio and 1 or n_channels
 
         s_start = int(np.round(sr_native * offset)) * n_stride
 
@@ -120,7 +125,10 @@ def load(path, sr=22050, mono=True, offset=0.0, duration=None,
         n = 0
 
         for frame in input_file:
-            frame = util.buf_to_float(frame, dtype=dtype)
+            if not _using_aubio:
+                frame = util.buf_to_float(frame, dtype=dtype)
+            else:
+                frame = np.copy(frame.T)
             n_prev = n
             n = n + len(frame)
 
@@ -148,7 +156,9 @@ def load(path, sr=22050, mono=True, offset=0.0, duration=None,
         y = np.concatenate(y)
 
         if n_channels > 1:
-            y = y.reshape((-1, n_channels)).T
+            if not _using_aubio:
+                y = y.reshape((-1, n_channels))
+            y = y.T
             if mono:
                 y = to_mono(y)
 
@@ -354,7 +364,8 @@ def get_duration(y=None, sr=22050, S=None, n_fft=2048, hop_length=512,
 
     if filename is not None:
         with audio_open(filename) as fdesc:
-            return fdesc.duration
+            if _using_aubio: return fdesc.duration / float(fdesc.samplerate)
+            else: return fdesc.duration
 
     if y is None:
         assert S is not None
