@@ -5,7 +5,7 @@
 import os
 import six
 
-import audioread
+from audioread import audio_open
 import numpy as np
 import scipy.signal
 import scipy.fftpack as fft
@@ -104,7 +104,7 @@ def load(path, sr=22050, mono=True, offset=0.0, duration=None,
     """
 
     y = []
-    with audioread.audio_open(os.path.realpath(path)) as input_file:
+    with audio_open(os.path.realpath(path)) as input_file:
         sr_native = input_file.samplerate
         n_channels = input_file.channels
 
@@ -352,7 +352,7 @@ def get_duration(y=None, sr=22050, S=None, n_fft=2048, hop_length=512,
     """
 
     if filename is not None:
-        with audioread.audio_open(filename) as fdesc:
+        with audio_open(filename) as fdesc:
             return fdesc.duration
 
     if y is None:
